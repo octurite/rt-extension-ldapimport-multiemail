@@ -32,7 +32,15 @@ sub _import_user {
     my %original_secondary;
     my @secondary;
     for my $attr (@{$secondary_attrs}) {
-        $original_secondary{$attr} = [ $ldap->get_value($attr) ];
+        if ('CODE' eq ref($attr)) {
+            $original_secondary{$attr} = $attr->(
+                'self' => $self,
+                'uid' => $uid,
+                'email' => $email
+            );
+        } else {
+            $original_secondary{$attr} = [ $ldap->get_value($attr) ];
+        }
         push @secondary, map {[$attr, $_]} grep {/\S/ and $_ ne $email} @{$original_secondary{$attr}};
     }
     my(@users, @merge);
@@ -154,6 +162,20 @@ Multiple alternate email address attributes can be specified using an
 array reference:
 
     Set( $LDAPMultiEmail, ['alternateEmail', 'homeEmail'] );
+
+If you need to generate an alternate email address or override programatically,
+you can send a function in addition to a field:
+
+    Set( $LDAPMultiEmail, [
+			'alternateEmail',
+			'homeEmail',
+			sub {
+				my ($self, $uid, $email) = @_;
+				if ($uid) return [ "$uid@otherdomain.com" ];
+				return undef;
+			}
+		]
+	);
 
 =back
 
